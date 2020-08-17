@@ -1,25 +1,17 @@
-/*
-  This demonstrates a simple echo server using the library.
+import { TServer, TServerHandler } from "../mod.ts";
 
-  A client connects, and when data is received, it is echoed back.
-*/
+const EchoServer: TServerHandler = {
+  onConnection(client) {
+    console.log(client.uuid, "connected.");
+  },
+  onData(client, buffer) {
+    console.log(client.uuid, ":", new TextDecoder().decode(buffer));
+    client.write(buffer);
+  },
+  onDisconnect(uuid: string) {
+    console.log(uuid, "disconnected.");
+  },
+};
 
-import { Server } from "../mod.ts";
-
-const server = new Server({ port: 3000, hostname: "localhost" });
-
-server.on("connection", (socket) => {
-  console.log("Client", socket.uuid, "connected.");
-  socket.on("error", (e) => {
-    console.error(e);
-  });
-  socket.on("close", () => {
-    console.log("Client", socket.uuid, "disconnected.");
-  });
-  socket.on("data", (chunk) => {
-    console.log(socket.uuid, ":", new TextDecoder().decode(chunk));
-    socket.write(chunk);
-  });
-});
-
-console.log("Listening on localhost:3000...");
+const server: TServer = TServer.listen({ port: 3000 }, EchoServer);
+console.log("Listening on localhost:3000");
