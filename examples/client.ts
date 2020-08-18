@@ -1,12 +1,15 @@
-import { TClient, TClientHandler, connect } from "../mod.ts";
+import Sockets from "../mod.ts";
 
-const EchoClient: TClientHandler = {
+const EchoClient: Sockets.Client.IClientHandler = {
   onData(buffer) {
     console.log(new TextDecoder().decode(buffer));
     this.socket.close();
   },
 };
 
-const client: TClient = await connect({ port: 3000 }, EchoClient);
+const client: Sockets.Client = await Sockets.Client.connect(
+  { port: 3000 },
+  EchoClient,
+);
 console.log("Connected.");
 client.send("Hello, Deno!");

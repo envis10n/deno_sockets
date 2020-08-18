@@ -1,6 +1,6 @@
-import { TServer, TServerHandler } from "../mod.ts";
+import Sockets from "../mod.ts";
 
-const EchoServer: TServerHandler = {
+const EchoServer: Sockets.Server.IServerHandler = {
   onConnection(client) {
     console.log(client.uuid, "connected.");
   },
@@ -13,5 +13,8 @@ const EchoServer: TServerHandler = {
   },
 };
 
-const server: TServer = TServer.listen({ port: 3000 }, EchoServer);
+const server: Sockets.Server = Sockets.Server.listen(
+  { port: 3000 },
+  EchoServer,
+);
 console.log("Listening on localhost:3000");
