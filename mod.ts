@@ -73,23 +73,41 @@ namespace Sockets {
       onClose?(this: Server, hadError: boolean): void;
     }
   }
+  /**
+   * A class defining a server wrapper for a Deno listener.
+   */
   export class Server {
     private readonly _clients: Map<string, Client> = new Map();
     private readonly _listener: Deno.Listener;
     private _hadError: boolean = false;
     private _handlers: Server.IServerHandler;
+    /**
+     * Creates a Server instance with desired options and handlers.
+     * @param options The listen options object.
+     * @param handlers The handler object.
+     */
     static listen(
       options: Deno.ListenOptions,
       handlers: Server.IServerHandler,
     ): Server {
       return new Server(Deno.listen(options), handlers);
     }
+    /**
+     * Creates a secure Server instance with desired options and handlers.
+     * @param options The listen options object.
+     * @param handlers The handler object.
+     */
     static listenTls(
       options: Deno.ListenTlsOptions,
       handlers: Server.IServerHandler,
     ): Server {
       return new Server(Deno.listenTls(options), handlers);
     }
+    /**
+     * Construct a Server instance from a listener and handlers. (Use listen and listenTls static methods instead)
+     * @param listener The listener object.
+     * @param handlers The handler object.
+     */
     constructor(
       listener: Deno.Listener,
       handlers: Server.IServerHandler,
@@ -103,11 +121,69 @@ namespace Sockets {
         })
         .finally(() => {
           this._handlers.onClose?.call(this, this._hadError);
-          // Internal cleanup
           this._clients.clear();
         });
     }
-    async loop(): Promise<void> {
+    /**
+     * Gets a connected client from the client map by UUID.
+     * @param uuid The client identifier.
+     */
+    public getClient(uuid: string): Client | undefined {
+      return this._clients.get(uuid);
+    }
+    /**
+     * Broadcast a buffer to all connected clients.
+     * @param buffer The buffer to send.
+     */
+    public async broadcast(buffer: Uint8Array): Promise<[number, number]>;
+    /**
+     * Broadcast a buffer to each client passing the provided filter.
+     * @param buffer The buffer to send.
+     * @param filter The filter to be applied.
+     */
+    public async broadcast(
+      buffer: Uint8Array,
+      filter: (client: Client) => boolean,
+    ): Promise<[number, number]>;
+    /**
+     * Broadcast a buffer to all connected clients, with optional filter.
+     * @param buffer The buffer to send.
+     * @param filter The filter to be applied.
+     */
+    public async broadcast(
+      buffer: Uint8Array,
+      filter?: (client: Client) => boolean,
+    ): Promise<[number, number]> {
+      let count: number = 0;
+      let bytes: number = 0;
+      for (const client of this._clients.values()) {
+        if (filter != undefined) {
+          if (!filter(client)) continue;
+        }
+        try {
+          bytes += await client.write(buffer);
+          count++;
+        } catch (e) {}
+      }
+      return [count, bytes];
+    }
+    /**
+     * Write a buffer directly to a client by UUID.
+     * @param buffer The buffer to send.
+     * @param uuid The client identifier.
+     */
+    public async writeToClient(
+      buffer: Uint8Array,
+      uuid: string,
+    ): Promise<number> {
+      const client = this._clients.get(uuid);
+      if (client == undefined) throw new Error("Invalid client identifier.");
+      return await client.write(buffer);
+    }
+    /**
+     * Internal function for async looping over connections.
+     */
+    private async loop(): Promise<void> {
       for await (const conn of this._listener) {
         let container: Client = buildClient(conn);
         const cuuid: string = container.uuid;
